@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Villavo · Rutas — Visualizador de caminos mínimos</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <div id="map"></div>
+  <canvas id="route-canvas"></canvas>
+
+  <!-- Tablero de instrumentos -->
+  <aside class="panel" id="panel">
+    <header class="brand">
+      <div class="brand__mark" aria-hidden="true">
+        <span class="brand__dot"></span>
+      </div>
+      <div class="brand__text">
+        <h1>VILLAVO<span>·RUTAS</span></h1>
+        <p>pathfinding sobre la malla vial real</p>
+      </div>
+    </header>
+
+    <section class="block">
+      <div class="block__label"><span>01</span> Puntos</div>
+
+      <div class="field" data-role="origin">
+        <span class="field__tag field__tag--o">O</span>
+        <input type="text" id="origin-input" placeholder="Origen — escribe o clic en el mapa" autocomplete="off" />
+        <button class="field__go" data-geocode="origin" title="Buscar dirección">↵</button>
+      </div>
+
+      <div class="field" data-role="dest">
+        <span class="field__tag field__tag--d">D</span>
+        <input type="text" id="dest-input" placeholder="Destino — escribe o clic en el mapa" autocomplete="off" />
+        <button class="field__go" data-geocode="dest" title="Buscar dirección">↵</button>
+      </div>
+
+      <button class="ghost" id="swap-btn" title="Intercambiar origen y destino">⇅ intercambiar</button>
+    </section>
+
+    <section class="block">
+      <div class="block__label"><span>02</span> Algoritmo</div>
+      <div class="segmented" id="algo-seg" role="tablist">
+        <button class="seg is-active" data-algo="dijkstra">Dijkstra</button>
+        <button class="seg" data-algo="a_star">A<span class="star">*</span></button>
+        <span class="segmented__pill" aria-hidden="true"></span>
+      </div>
+    </section>
+
+    <section class="block">
+      <div class="block__label"><span>03</span> Velocidad</div>
+      <input type="range" id="speed" min="1" max="12" value="5" class="slider" />
+    </section>
+
+    <button class="trace" id="trace-btn" disabled>
+      <span class="trace__label">Trazar ruta</span>
+      <span class="trace__spark"></span>
+    </button>
+
+    <!-- Lecturas -->
+    <section class="readout" id="readout" hidden>
+      <div class="readout__grid">
+        <div class="gauge">
+          <span class="gauge__num" id="r-dist">—</span>
+          <span class="gauge__unit">km</span>
+          <span class="gauge__cap">distancia</span>
+        </div>
+        <div class="gauge">
+          <span class="gauge__num" id="r-time">—</span>
+          <span class="gauge__unit">min</span>
+          <span class="gauge__cap">tiempo est.</span>
+        </div>
+      </div>
+      <div class="compare">
+        <div class="compare__row">
+          <span class="compare__k"><i class="swatch swatch--dij"></i>Dijkstra</span>
+          <span class="compare__v" id="r-dij">—</span><span class="compare__u">nodos</span>
+        </div>
+        <div class="compare__row">
+          <span class="compare__k"><i class="swatch swatch--astar"></i>A*</span>
+          <span class="compare__v" id="r-astar">—</span><span class="compare__u">nodos</span>
+        </div>
+        <div class="compare__bar"><span id="r-bar"></span></div>
+        <p class="compare__note" id="r-note"></p>
+      </div>
+    </section>
+
+    <footer class="legend">
+      <span><i class="lg lg--explore"></i>explorado</span>
+      <span><i class="lg lg--path"></i>ruta</span>
+      <span><i class="lg lg--o"></i>origen</span>
+      <span><i class="lg lg--d"></i>destino</span>
+    </footer>
+  </aside>
+
+  <!-- Barra de estado -->
+  <div class="statusbar" id="statusbar">
+    <span class="statusbar__live"><i></i><b id="status-text">Cargando malla vial…</b></span>
+    <span class="statusbar__meta" id="status-meta"></span>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

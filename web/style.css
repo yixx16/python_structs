@@ -1,0 +1,321 @@
+/* ============================================================
+   VILLAVO · RUTAS — instrumento cartográfico
+   ============================================================ */
+:root {
+  --bg:        #07090c;
+  --ink:       #e8edf2;
+  --ink-dim:   #8b97a3;
+  --ink-faint: #5a6571;
+
+  --panel:     rgba(13, 17, 22, 0.78);
+  --panel-line: rgba(255, 255, 255, 0.08);
+  --panel-line-2: rgba(255, 255, 255, 0.04);
+
+  --amber:     #f0a512;   /* exploración */
+  --amber-hot: #ffc857;
+  --amber-deep:#8a3d00;
+  --cyan:      #2ee6d6;   /* ruta */
+  --cyan-glow: rgba(46, 230, 214, 0.55);
+  --emerald:   #34e07f;   /* origen */
+  --magenta:   #ff5d8f;   /* destino */
+
+  --r: 14px;
+  --shadow: 0 24px 60px -18px rgba(0,0,0,0.85), 0 2px 0 rgba(255,255,255,0.03) inset;
+  --display: "Bricolage Grotesque", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--mono);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---- Mapa + canvas de ruta -------------------------------- */
+#map {
+  position: absolute; inset: 0;
+  background: #07090c;
+  z-index: 1;
+}
+/* el canvas vive en el overlayPane de Leaflet (bajo los marcadores);
+   se posiciona por JS con L.DomUtil.setPosition */
+#route-canvas {
+  position: absolute; left: 0; top: 0;
+  pointer-events: none;
+}
+/* atenuar los tiles para que la ruta resalte */
+.leaflet-tile { filter: saturate(0.65) brightness(0.92); }
+.leaflet-container { background: #07090c; }
+.leaflet-control-attribution {
+  background: rgba(7,9,12,0.6) !important;
+  color: var(--ink-faint) !important;
+  font-family: var(--mono); font-size: 9px;
+  backdrop-filter: blur(6px);
+}
+.leaflet-control-attribution a { color: var(--ink-dim) !important; }
+.leaflet-control-zoom { display: none; }
+
+/* ---- Panel / tablero -------------------------------------- */
+.panel {
+  position: absolute; top: 22px; left: 22px; z-index: 1000;
+  width: 340px; max-height: calc(100vh - 96px);
+  padding: 22px 20px 16px;
+  display: flex; flex-direction: column; gap: 18px;
+  background: var(--panel);
+  border: 1px solid var(--panel-line);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(22px) saturate(1.2);
+  -webkit-backdrop-filter: blur(22px) saturate(1.2);
+  overflow-y: auto;
+  animation: panel-in 0.7s cubic-bezier(.2,.8,.2,1) both;
+}
+/* hilo de luz ámbar en el borde superior */
+.panel::before {
+  content: ""; position: absolute; top: 0; left: 16px; right: 16px; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--amber), transparent);
+  opacity: 0.7;
+}
+.panel::-webkit-scrollbar { width: 6px; }
+.panel::-webkit-scrollbar-thumb { background: var(--panel-line); border-radius: 6px; }
+
+@keyframes panel-in {
+  from { opacity: 0; transform: translateX(-18px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* stagger de los hijos */
+.panel > * { animation: rise 0.6s cubic-bezier(.2,.8,.2,1) both; }
+.panel > *:nth-child(1) { animation-delay: 0.05s; }
+.panel > *:nth-child(2) { animation-delay: 0.12s; }
+.panel > *:nth-child(3) { animation-delay: 0.18s; }
+.panel > *:nth-child(4) { animation-delay: 0.24s; }
+.panel > *:nth-child(5) { animation-delay: 0.30s; }
+.panel > *:nth-child(6) { animation-delay: 0.36s; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* ---- Marca ------------------------------------------------ */
+.brand { display: flex; align-items: center; gap: 13px; }
+.brand__mark {
+  width: 38px; height: 38px; flex: none; border-radius: 10px;
+  background: radial-gradient(circle at 30% 30%, #1a2128, #0c1014);
+  border: 1px solid var(--panel-line);
+  display: grid; place-items: center;
+  box-shadow: 0 0 0 4px rgba(240,165,18,0.06);
+}
+.brand__dot {
+  width: 11px; height: 11px; border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 12px 2px rgba(240,165,18,0.8);
+  animation: beacon 2.4s ease-in-out infinite;
+}
+@keyframes beacon { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
+.brand__text h1 {
+  font-family: var(--display); font-weight: 800; font-size: 21px;
+  letter-spacing: -0.02em; line-height: 1; color: var(--ink);
+}
+.brand__text h1 span { color: var(--amber); font-weight: 600; margin-left: 2px; }
+.brand__text p {
+  font-size: 10px; color: var(--ink-faint); margin-top: 5px;
+  letter-spacing: 0.04em; text-transform: lowercase;
+}
+
+/* ---- Bloques ---------------------------------------------- */
+.block { display: flex; flex-direction: column; gap: 10px; }
+.block__label {
+  font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--ink-dim); display: flex; align-items: center; gap: 8px;
+}
+.block__label span {
+  color: var(--amber); font-weight: 600;
+  border: 1px solid rgba(240,165,18,0.3); border-radius: 4px;
+  padding: 1px 5px; font-size: 9px;
+}
+
+/* ---- Campos ----------------------------------------------- */
+.field {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--panel-line);
+  border-radius: 10px; padding: 0 8px 0 0;
+  transition: border-color 0.2s, background 0.2s;
+}
+.field:focus-within { border-color: rgba(240,165,18,0.5); background: rgba(240,165,18,0.04); }
+.field__tag {
+  width: 30px; height: 38px; flex: none; display: grid; place-items: center;
+  font-family: var(--display); font-weight: 700; font-size: 13px;
+  border-radius: 9px 0 0 9px;
+}
+.field__tag--o { color: var(--emerald); }
+.field__tag--d { color: var(--magenta); }
+.field input {
+  flex: 1; min-width: 0; background: none; border: none; outline: none;
+  color: var(--ink); font-family: var(--mono); font-size: 12px; padding: 11px 0;
+}
+.field input::placeholder { color: var(--ink-faint); }
+.field__go {
+  flex: none; width: 26px; height: 26px; border-radius: 7px;
+  background: rgba(255,255,255,0.05); border: 1px solid var(--panel-line);
+  color: var(--ink-dim); cursor: pointer; font-size: 13px;
+  transition: all 0.18s;
+}
+.field__go:hover { color: var(--amber); border-color: rgba(240,165,18,0.4); }
+.field.is-active { border-color: rgba(240,165,18,0.7); box-shadow: 0 0 0 3px rgba(240,165,18,0.08); }
+
+.ghost {
+  align-self: flex-start; background: none; border: none;
+  color: var(--ink-faint); font-family: var(--mono); font-size: 10px;
+  cursor: pointer; letter-spacing: 0.05em; padding: 2px 0;
+  transition: color 0.18s;
+}
+.ghost:hover { color: var(--cyan); }
+
+/* ---- Segmented (algoritmo) -------------------------------- */
+.segmented {
+  position: relative; display: grid; grid-template-columns: 1fr 1fr; gap: 0;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--panel-line);
+  border-radius: 10px; padding: 4px;
+}
+.seg {
+  position: relative; z-index: 2; background: none; border: none; cursor: pointer;
+  padding: 9px 0; font-family: var(--display); font-weight: 600; font-size: 13px;
+  color: var(--ink-dim); transition: color 0.25s; letter-spacing: 0.01em;
+}
+.seg .star { color: var(--amber); }
+.seg.is-active { color: var(--bg); }
+.segmented__pill {
+  position: absolute; z-index: 1; top: 4px; left: 4px;
+  width: calc(50% - 4px); height: calc(100% - 8px);
+  background: linear-gradient(180deg, var(--amber-hot), var(--amber));
+  border-radius: 7px; box-shadow: 0 4px 14px -4px rgba(240,165,18,0.6);
+  transition: transform 0.32s cubic-bezier(.2,.9,.2,1);
+}
+.segmented[data-pos="1"] .segmented__pill { transform: translateX(100%); }
+
+/* ---- Slider ----------------------------------------------- */
+.slider { -webkit-appearance: none; width: 100%; height: 4px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--amber-deep), var(--amber)); outline: none; }
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--ink); border: 3px solid var(--amber);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.5); cursor: pointer; transition: transform 0.15s;
+}
+.slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.slider::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%;
+  background: var(--ink); border: 3px solid var(--amber); cursor: pointer; }
+
+/* ---- Botón trazar ----------------------------------------- */
+.trace {
+  position: relative; overflow: hidden; cursor: pointer;
+  padding: 15px; border: none; border-radius: 11px;
+  font-family: var(--display); font-weight: 700; font-size: 15px;
+  letter-spacing: 0.02em; color: var(--bg);
+  background: linear-gradient(135deg, var(--amber-hot), var(--amber));
+  box-shadow: 0 10px 28px -10px rgba(240,165,18,0.7), 0 0 0 1px rgba(255,200,87,0.4) inset;
+  transition: transform 0.15s, box-shadow 0.2s, filter 0.2s;
+}
+.trace:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 16px 36px -10px rgba(240,165,18,0.85); }
+.trace:active:not(:disabled) { transform: translateY(0); }
+.trace:disabled { filter: grayscale(0.7) brightness(0.55); cursor: not-allowed; box-shadow: none; }
+.trace__spark {
+  position: absolute; top: 0; left: -120%; width: 60%; height: 100%;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.5), transparent);
+  transform: skewX(-18deg);
+}
+.trace:hover:not(:disabled) .trace__spark { animation: sweep 0.8s ease; }
+@keyframes sweep { to { left: 160%; } }
+.trace.is-running { pointer-events: none; }
+.trace.is-running .trace__label::after {
+  content: ""; animation: dots 1.2s steps(4) infinite;
+}
+@keyframes dots { 0%{content:"";} 25%{content:"·";} 50%{content:"··";} 75%{content:"···";} }
+
+/* ---- Lecturas / gauges ------------------------------------ */
+.readout {
+  display: flex; flex-direction: column; gap: 14px;
+  padding: 16px; border-radius: 12px;
+  background: rgba(46,230,214,0.04);
+  border: 1px solid rgba(46,230,214,0.18);
+  animation: rise 0.5s cubic-bezier(.2,.8,.2,1) both;
+}
+.readout__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.gauge { display: flex; flex-direction: column; gap: 2px; }
+.gauge__num {
+  font-family: var(--display); font-weight: 800; font-size: 30px; line-height: 1;
+  color: var(--cyan); letter-spacing: -0.02em;
+  text-shadow: 0 0 18px var(--cyan-glow);
+  font-variant-numeric: tabular-nums;
+}
+.gauge__unit { font-size: 11px; color: var(--ink-dim); margin-top: -2px; }
+.gauge__cap { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint); margin-top: 4px; }
+
+.compare { display: flex; flex-direction: column; gap: 7px; }
+.compare__row { display: flex; align-items: baseline; gap: 8px; font-size: 12px; }
+.compare__k { display: flex; align-items: center; gap: 7px; color: var(--ink-dim); flex: 1; }
+.swatch { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+.swatch--dij { background: var(--amber); }
+.swatch--astar { background: var(--cyan); }
+.compare__v { font-family: var(--display); font-weight: 700; font-size: 15px; color: var(--ink); font-variant-numeric: tabular-nums; }
+.compare__u { font-size: 9px; color: var(--ink-faint); }
+.compare__bar { height: 4px; border-radius: 4px; background: rgba(255,255,255,0.07); overflow: hidden; }
+.compare__bar span { display: block; height: 100%; width: 0; border-radius: 4px;
+  background: linear-gradient(90deg, var(--cyan), var(--emerald)); transition: width 0.8s cubic-bezier(.2,.8,.2,1); }
+.compare__note { font-size: 10px; color: var(--cyan); line-height: 1.4; }
+
+/* ---- Leyenda ---------------------------------------------- */
+.legend {
+  display: flex; flex-wrap: wrap; gap: 6px 14px; padding-top: 4px;
+  border-top: 1px solid var(--panel-line-2);
+}
+.legend span { display: flex; align-items: center; gap: 6px; font-size: 10px; color: var(--ink-dim); }
+.lg { width: 14px; height: 3px; border-radius: 3px; flex: none; }
+.lg--explore { background: linear-gradient(90deg, var(--amber-deep), var(--amber)); }
+.lg--path { background: var(--cyan); box-shadow: 0 0 6px var(--cyan-glow); }
+.lg--o { width: 9px; height: 9px; border-radius: 50%; background: var(--emerald); }
+.lg--d { width: 9px; height: 9px; border-radius: 50%; background: var(--magenta); }
+
+/* ---- Barra de estado -------------------------------------- */
+.statusbar {
+  position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); z-index: 1000;
+  display: flex; align-items: center; gap: 18px;
+  padding: 9px 18px; border-radius: 100px;
+  background: var(--panel); border: 1px solid var(--panel-line);
+  backdrop-filter: blur(20px); box-shadow: var(--shadow);
+  font-size: 11px; max-width: 90vw;
+  animation: rise 0.6s 0.4s cubic-bezier(.2,.8,.2,1) both;
+}
+.statusbar__live { display: flex; align-items: center; gap: 8px; color: var(--ink); white-space: nowrap; }
+.statusbar__live i {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--amber);
+  box-shadow: 0 0 8px var(--amber); animation: beacon 1.6s ease-in-out infinite;
+}
+.statusbar__live b { font-weight: 500; }
+.statusbar__meta { color: var(--ink-faint); white-space: nowrap; letter-spacing: 0.03em; }
+
+/* ---- Marcadores personalizados ---------------------------- */
+.pin { position: relative; }
+.pin__core {
+  width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--bg);
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+}
+.pin__ring {
+  position: absolute; top: 50%; left: 50%; width: 14px; height: 14px;
+  border-radius: 50%; transform: translate(-50%,-50%);
+  animation: ping 1.8s cubic-bezier(0,0,.2,1) infinite;
+}
+.pin--o .pin__core { background: var(--emerald); box-shadow: 0 0 12px var(--emerald); }
+.pin--o .pin__ring { border: 2px solid var(--emerald); }
+.pin--d .pin__core { background: var(--magenta); box-shadow: 0 0 12px var(--magenta); }
+.pin--d .pin__ring { border: 2px solid var(--magenta); }
+@keyframes ping { 0% { width: 14px; height: 14px; opacity: 0.9; } 100% { width: 46px; height: 46px; opacity: 0; } }
+
+/* ---- Responsive ------------------------------------------- */
+@media (max-width: 640px) {
+  .panel { left: 12px; right: 12px; top: 12px; width: auto; }
+  .statusbar { bottom: 12px; }
+}

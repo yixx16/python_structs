@@ -1,0 +1,4 @@
+# Dependencias de RUNTIME (servir la app web).
+# El motor de grafos es Python puro: no necesita osmnx/networkx/shapely.
+fastapi>=0.110
+uvicorn[standard]>=0.29
