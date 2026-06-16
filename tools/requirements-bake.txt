@@ -1,0 +1,5 @@
+# Dependencias SOLO para hornear el grafo (tools/bake_graph.py).
+# Se usan una vez para convertir el .pkl de OSMnx a data/graph.json.
+networkx>=3.0
+shapely>=2.0
+numpy>=1.24
